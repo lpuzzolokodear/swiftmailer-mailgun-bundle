@@ -33,6 +33,7 @@ class Configuration implements ConfigurationInterface
                 ->scalarNode('key')->isRequired()->end()
                 ->scalarNode('domain')->isRequired()->end()
                 ->scalarNode('http_client')->end()
+                ->scalarNode('endpoint')->defaultValue('https://api.mailgun.net')->end()
             ->end();
     }
 }

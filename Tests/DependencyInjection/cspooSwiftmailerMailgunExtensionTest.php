@@ -22,7 +22,11 @@ class cspooSwiftmailerMailgunExtensionTest extends AbstractExtensionTestCase
      */
     protected function getMinimalConfiguration()
     {
-        return array('key'=>'foo','domain'=>'bar');
+        return array(
+            'key'=>'foo',
+            'domain'=>'bar',
+            'endpoint' => 'mailgun.kodear.net',
+        );
     }
 
 
@@ -35,6 +39,7 @@ class cspooSwiftmailerMailgunExtensionTest extends AbstractExtensionTestCase
 
         $this->assertContainerBuilderHasParameter('mailgun.key', 'foo');
         $this->assertContainerBuilderHasParameter('mailgun.domain', 'bar');
+        $this->assertContainerBuilderHasParameter('mailgun.endpoint', 'mailgun.kodear.net');
 
         $this->assertContainerBuilderHasAlias('mailgun', 'mailgun.swift_transport.transport');
         $this->assertContainerBuilderHasAlias('swiftmailer.mailer.transport.mailgun', 'mailgun.swift_transport.transport');

@@ -29,6 +29,7 @@ class cspooSwiftmailerMailgunExtension extends Extension
 
         $container->setParameter('mailgun.key', $config['key']);
         $container->setParameter('mailgun.domain', $config['domain']);
+        $container->setParameter('mailgun.endpoint', $config['endpoint']);
 
         $definitionDecorator = new DefinitionDecorator('swiftmailer.transport.eventdispatcher.abstract');
         $container->setDefinition('mailgun.swift_transport.eventdispatcher', $definitionDecorator);
