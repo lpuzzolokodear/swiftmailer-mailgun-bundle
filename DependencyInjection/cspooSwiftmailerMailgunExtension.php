@@ -29,7 +29,7 @@ class cspooSwiftmailerMailgunExtension extends Extension
 
         $container->setParameter('mailgun.key', $config['key']);
         $container->setParameter('mailgun.domain', $config['domain']);
-        $container->setParameter('mailgun.endpoint', $config['endpoint']);
+//        $container->setParameter('mailgun.endpoint', $config['endpoint']);
 
         $definitionDecorator = new DefinitionDecorator('swiftmailer.transport.eventdispatcher.abstract');
         $container->setDefinition('mailgun.swift_transport.eventdispatcher', $definitionDecorator);
@@ -39,6 +39,10 @@ class cspooSwiftmailerMailgunExtension extends Extension
 
         if (!empty($config['http_client'])) {
             $container->getDefinition('mailgun.library')->replaceArgument(1, new Reference($config['http_client']));
+        }
+
+        if (!empty($config['endpoint'])) {
+            $container->getDefinition('mailgun.library')->replaceArgument(2, new Reference($config['endpoint']));
         }
 
         //set some alias
