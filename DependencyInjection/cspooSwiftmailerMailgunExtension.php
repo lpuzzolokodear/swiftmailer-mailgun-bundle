@@ -46,10 +46,10 @@ class cspooSwiftmailerMailgunExtension extends Extension
             $arguments = $definition->getArguments();
             if (array_key_exists(2, $arguments)) {
                 // Endpoint is already set, we need to override it
-                $definition->replaceArgument(2, new Reference($config['endpoint']));
+                $definition->replaceArgument(2, $config['endpoint']);
             } else {
                 // Endpoint is not set, we can just add it
-                $definition->addArgument(new Reference($config['endpoint']));
+                $definition->addArgument($config['endpoint']);
             }
         }
 
