@@ -37,12 +37,20 @@ class cspooSwiftmailerMailgunExtension extends Extension
         $container->getDefinition('mailgun.swift_transport.transport')
             ->replaceArgument(0, new Reference('mailgun.swift_transport.eventdispatcher'));
 
+        $definition = $container->getDefinition('mailgun.library');
         if (!empty($config['http_client'])) {
-            $container->getDefinition('mailgun.library')->replaceArgument(1, new Reference($config['http_client']));
+            $definition->replaceArgument(1, new Reference($config['http_client']));
         }
 
         if (!empty($config['endpoint'])) {
-            $container->getDefinition('mailgun.library')->replaceArgument(2, new Reference($config['endpoint']));
+            $arguments = $definition->getArguments();
+            if (array_key_exists(2, $arguments)) {
+                // Endpoint is already set, we need to override it
+                $definition->replaceArgument(2, new Reference($config['endpoint']));
+            } else {
+                // Endpoint is not set, we can just add it
+                $definition->addArgument(new Reference($config['endpoint']));
+            }
         }
 
         //set some alias
