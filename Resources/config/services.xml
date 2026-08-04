@@ -19,6 +19,7 @@
             <argument></argument>
             <argument type="service" id="mailgun.library"></argument>
             <argument>%mailgun.domain%</argument>
+            <argument type="service" id="monolog.logger.mailer" on-invalid="null"></argument>
         </service>
     </services>
 </container>

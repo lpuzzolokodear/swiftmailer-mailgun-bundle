@@ -121,11 +121,22 @@ class MailgunTransportTest extends \PHPUnit_Framework_TestCase
     {
         $dispatcher = $this->getMock('Swift_Events_EventDispatcher');
         $mailgun = $this->getMock('Mailgun\Mailgun');
-        $transport = new MailgunTransport($dispatcher, $mailgun, 'default.com');
+        $logger = $this->getMock('Psr\Log\LoggerInterface');
+        $transport = new MailgunTransport($dispatcher, $mailgun, 'default.com', $logger);
 
         $mailgun->expects($this->once())
             ->method('sendMessage')
-            ->will($this->throwException(new MissingEndpoint()));
+            ->will($this->throwException(new MissingEndpoint('missing endpoint')));
+
+        $logger->expects($this->once())
+            ->method('error')
+            ->with(
+                $this->anything(),
+                $this->callback(function ($context) {
+                    return $context['exception_class'] === 'Mailgun\Connection\Exceptions\MissingEndpoint'
+                        && $context['exception_message'] === 'missing endpoint';
+                })
+            );
 
         $message = \Swift_Message::newInstance()
              ->setSubject('Foobar')

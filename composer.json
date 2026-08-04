@@ -20,7 +20,8 @@
         "swiftmailer/swiftmailer": "^5.0",
         "mailgun/mailgun-php": "^2.0",
         "symfony/dependency-injection": "^2.3|^3.0",
-        "nyholm/psr7": "^1.8"
+        "nyholm/psr7": "^1.8",
+        "psr/log": "^1.0"
     },
     "require-dev": {
         "matthiasnoback/symfony-dependency-injection-test": "^0.7.6",

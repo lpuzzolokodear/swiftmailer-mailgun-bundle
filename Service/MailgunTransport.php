@@ -3,6 +3,7 @@
 namespace cspoo\Swiftmailer\MailgunBundle\Service;
 
 use Mailgun\Mailgun;
+use Psr\Log\LoggerInterface;
 use Swift_Events_EventListener;
 use Swift_Events_SendEvent;
 use Swift_Mime_Message;
@@ -30,15 +31,22 @@ class MailgunTransport implements Swift_Transport
     private $eventDispatcher;
 
     /**
+     * @var LoggerInterface|null logger
+     */
+    private $logger;
+
+    /**
      * @param \Swift_Events_EventDispatcher $eventDispatcher
      * @param Mailgun                       $mailgun
      * @param $domain
+     * @param LoggerInterface|null $logger
      */
-    public function __construct(\Swift_Events_EventDispatcher $eventDispatcher, Mailgun $mailgun, $domain)
+    public function __construct(\Swift_Events_EventDispatcher $eventDispatcher, Mailgun $mailgun, $domain, LoggerInterface $logger = null)
     {
         $this->eventDispatcher = $eventDispatcher;
         $this->domain = $domain;
         $this->mailgun = $mailgun;
+        $this->logger = $logger;
     }
 
     /**
@@ -113,6 +121,15 @@ class MailgunTransport implements Swift_Transport
             $failedRecipients = $postData['to'];
             $sent = 0;
             $resultStatus = Swift_Events_SendEvent::RESULT_FAILED;
+
+            if ($this->logger) {
+                $this->logger->error('Mailgun: fallo al enviar el mensaje', array(
+                    'exception_class' => get_class($e),
+                    'exception_message' => $e->getMessage(),
+                    'http_response_code' => $this->extractHttpResponseCode($e),
+                    'domain' => $domain,
+                ));
+            }
         }
 
         if ($evt) {
@@ -132,6 +149,26 @@ class MailgunTransport implements Swift_Transport
     public function registerPlugin(Swift_Events_EventListener $plugin)
     {
         $this->eventDispatcher->bindEventListener($plugin);
+    }
+
+    /**
+     * Extracts the HTTP response code from a Mailgun SDK exception, if any.
+     *
+     * @param \Exception $e
+     *
+     * @return int|null
+     */
+    private function extractHttpResponseCode(\Exception $e)
+    {
+        if (method_exists($e, 'getHttpResponseCode')) {
+            return $e->getHttpResponseCode();
+        }
+
+        if (method_exists($e, 'getResponseCode')) {
+            return $e->getResponseCode();
+        }
+
+        return $e->getCode() ?: null;
     }
 
     /**
