@@ -160,11 +160,11 @@ class MailgunTransport implements Swift_Transport
      */
     private function extractHttpResponseCode(\Exception $e)
     {
-        if (method_exists($e, 'getHttpResponseCode')) {
+        if (method_exists($e, 'getHttpResponseCode') && $e->getHttpResponseCode()) {
             return $e->getHttpResponseCode();
         }
 
-        if (method_exists($e, 'getResponseCode')) {
+        if (method_exists($e, 'getResponseCode') && $e->getResponseCode()) {
             return $e->getResponseCode();
         }
 
