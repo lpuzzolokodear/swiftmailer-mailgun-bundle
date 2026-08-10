@@ -3,6 +3,7 @@
 namespace cspoo\Swiftmailer\MailgunBundle\Tests\Service;
 
 use Mailgun\Connection\Exceptions\MissingEndpoint;
+use Mailgun\Mailgun;
 use cspoo\Swiftmailer\MailgunBundle\Service\MailgunTransport;
 
 class MailgunTransportTest extends \PHPUnit_Framework_TestCase
@@ -125,7 +126,7 @@ class MailgunTransportTest extends \PHPUnit_Framework_TestCase
         $transport = new MailgunTransport($dispatcher, $mailgun, 'default.com', $logger);
 
         $mailgun->expects($this->once())
-            ->method('sendMessage')
+            ->method('post')
             ->will($this->throwException(new MissingEndpoint('missing endpoint')));
 
         $logger->expects($this->once())
@@ -153,6 +154,68 @@ class MailgunTransportTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(['bob@example.com', 'eve@example.com', 'tobias@example.com'], $failed);
     }
 
+    public function testSendPostsTheMimeMessageFromMemory()
+    {
+        $dispatcher = $this->getMock('Swift_Events_EventDispatcher');
+        $mailgun = $this->getMock('Mailgun\Mailgun');
+        $transport = new MailgunTransport($dispatcher, $mailgun, 'default.com');
+
+        $result = new \stdClass();
+        $result->http_response_code = 200;
+
+        // The MIME body must travel as in-memory content, never as a file path.
+        $mailgun->expects($this->never())
+            ->method('sendMessage');
+
+        $mailgun->expects($this->once())
+            ->method('post')
+            ->with(
+                'default.com/messages.mime',
+                $this->anything(),
+                $this->callback(function ($files) {
+                    return isset($files['message'][0]['fileContent'])
+                        && false !== strpos($files['message'][0]['fileContent'], 'Message body')
+                        && !isset($files['message'][0]['filePath']);
+                })
+            )
+            ->willReturn($result);
+
+        $failed = null;
+        $sent = $transport->send($this->getMessage(), $failed);
+
+        $this->assertEquals(3, $sent);
+    }
+
+    /**
+     * A send that blows up must not leave a MIME temporary file behind. This is the
+     * regression test for the /tmp/MG_TMP_MIME* leak that filled up the disk: the
+     * deprecated Mailgun::sendMessage() only unlink()s the file after a successful
+     * HTTP call, so every failed request used to leak one file forever.
+     */
+    public function testFailedSendDoesNotLeaveTemporaryMimeFiles()
+    {
+        $temporaryFilesBefore = $this->getMimeTempFiles();
+
+        $httpClient = $this->getMock('Http\Client\HttpClient');
+        $httpClient->expects($this->once())
+            ->method('sendRequest')
+            ->will($this->throwException(new \RuntimeException('connection timed out')));
+
+        $dispatcher = $this->getMock('Swift_Events_EventDispatcher');
+        $mailgun = new Mailgun('api-key', $httpClient, 'api.example.com');
+        $transport = new MailgunTransport($dispatcher, $mailgun, 'default.com');
+
+        $failed = null;
+        $sent = $transport->send($this->getMessage(), $failed);
+
+        $this->assertEquals(0, $sent);
+        $this->assertEquals(
+            array(),
+            array_diff($this->getMimeTempFiles(), $temporaryFilesBefore),
+            'A failed send must not leave MIME temporary files in the system temp directory'
+        );
+    }
+
     /**
      * @return MailgunTransport
      */
@@ -170,9 +233,31 @@ class MailgunTransportTest extends \PHPUnit_Framework_TestCase
         $result->http_response_code = 200;
 
         $mailgun->expects($this->any())
-            ->method('sendMessage')
+            ->method('post')
             ->willReturn($result);
 
         return new MailgunTransport($dispatcher, $mailgun, 'default.com');
+    }
+
+    /**
+     * @return \Swift_Message
+     */
+    private function getMessage()
+    {
+        return \Swift_Message::newInstance()
+            ->setSubject('Foobar')
+            ->setFrom('alice@example.com')
+            ->setTo('bob@example.com')
+            ->setCc('tobias@example.com')
+            ->setBcc('eve@example.com')
+            ->setBody('Message body');
+    }
+
+    /**
+     * @return array
+     */
+    private function getMimeTempFiles()
+    {
+        return glob(sys_get_temp_dir().'/MG_TMP_MIME*');
     }
 }

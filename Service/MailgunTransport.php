@@ -115,7 +115,7 @@ class MailgunTransport implements Swift_Transport
         $domain = $this->getDomain($message);
         $sent = count($postData['to']);
         try {
-            $result = $this->mailgun->sendMessage($domain, $postData, $message->toString());
+            $result = $this->postMimeMessage($domain, $postData, $message->toString());
             $resultStatus = $result->http_response_code == 200 ? Swift_Events_SendEvent::RESULT_SUCCESS : Swift_Events_SendEvent::RESULT_FAILED;
         } catch (\Exception $e) {
             $failedRecipients = $postData['to'];
@@ -149,6 +149,37 @@ class MailgunTransport implements Swift_Transport
     public function registerPlugin(Swift_Events_EventListener $plugin)
     {
         $this->eventDispatcher->bindEventListener($plugin);
+    }
+
+    /**
+     * Posts the raw MIME message to Mailgun without writing it to a temporary file.
+     *
+     * Mailgun::sendMessage() is not used on purpose: for a MIME string it writes the
+     * message to a tempnam() file and only unlink()s it after the HTTP call returns,
+     * so every failed request leaks a /tmp/MG_TMP_MIME* file forever. Mailgun::post()
+     * accepts the message as in-memory content ('fileContent'), which the SDK streams
+     * through php://temp, and it builds the very same multipart request to the same
+     * endpoint.
+     *
+     * @param string $domain
+     * @param array  $postData
+     * @param string $mimeMessage
+     *
+     * @return \stdClass
+     */
+    private function postMimeMessage($domain, array $postData, $mimeMessage)
+    {
+        return $this->mailgun->post($domain.'/messages.mime', $postData, array(
+            // RestClient::post() iterates over each field, so the descriptor has to be
+            // wrapped in a list. Passing the descriptor directly makes the SDK treat its
+            // values as file paths.
+            'message' => array(
+                array(
+                    'fileContent' => $mimeMessage,
+                    'filename' => 'message',
+                ),
+            ),
+        ));
     }
 
     /**
